@@ -1,117 +1,123 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import '../models/auth_provider.dart';
-import 'morph_sign_in_button.dart';
-import '../../shell/pages/app_shell.dart';
-import '../../../common/widgets/styled_sheet.dart';
+import 'package:tune/features/welcome/pages/welcome_page.dart';
 
-/// Sign-in as a floating modal sheet: a headline and two sign-in buttons.
-///
-/// UI only. Tapping a provider shows a short loading beat, then closes the
-/// sheet and replaces the page under it with the app shell.
-///
-/// Note: bunpod shows this via their own vendored `expressive_sheet`
-/// package (`showExpressiveSheet`), which floats the sheet off all edges
-/// with its own spring-driven entrance. That package isn't public, so
-/// this uses Flutter's standard [showModalBottomSheet] with the shared
-/// [StyledSheet] chrome instead — same rounded-sheet feel, no extra
-/// dependency required.
-class AuthSheet extends StatefulWidget {
-  const AuthSheet({super.key, this.onSignedIn});
+class AuthSheet extends StatelessWidget {
+  const AuthSheet({super.key});
 
-  /// Invoked after the sign-in beat. Defaults to entering the app shell.
-  final VoidCallback? onSignedIn;
+  static const Color modalBg = Color(0xFFEFECE0);    // Inner container sand color
+  static const Color buttonBg = Color(0xFFE4DFD5);   // Soft cream-tan for authentication button
+  static const Color darkPillBg = Color(0xFF1E1E1B); // The dark physical accent block at the bottom
 
-  static Future<void> show(BuildContext context) {
-    return showModalBottomSheet<void>(
+  static void show(BuildContext context) {
+    showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.transparent, // Keeps the outer bounding space invisible for the floating look
+      elevation: 0,
       builder: (context) => const AuthSheet(),
     );
   }
 
   @override
-  State<AuthSheet> createState() => _AuthSheetState();
-}
-
-class _AuthSheetState extends State<AuthSheet> {
-  static const _signInBeat = Duration(seconds: 2);
-
-  Timer? _timer;
-  AuthProvider? _signingIn;
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void _signIn(AuthProvider provider) {
-    if (_signingIn != null) return;
-    setState(() => _signingIn = provider);
-
-    _timer = Timer(_signInBeat, () {
-      if (!mounted) return;
-      if (widget.onSignedIn != null) {
-        widget.onSignedIn!();
-        return;
-      }
-      final navigator = Navigator.of(context);
-      navigator.pop();
-      navigator.pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => const AppShell()),
-        (route) => false,
-      );
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: StyledSheet(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
+      // Provides the distinct floating margins from screen boundaries
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: MediaQuery.of(context).padding.bottom + 16,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: modalBg,
+          borderRadius: BorderRadius.circular(42), // Material 3 Expressive Ultra-Large Corners
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header Text
+            Center(
+              child: Text(
                 'Tune in.',
-                textAlign: TextAlign.center,
-                style: textTheme.headlineLarge?.copyWith(
-                  color: cs.onSurface,
+                style: textTheme.headlineMedium?.copyWith(
+                  color: WelcomePage.charcoalText,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
+                  fontSize: 32,
+                  letterSpacing: -0.8,
                 ),
               ),
-              const SizedBox(height: 24),
-              MorphSignInButton(
-                icon: Icon(Icons.g_mobiledata_rounded, size: 28, color: cs.onSecondaryContainer),
-                label: 'Continue with Google',
-                background: cs.secondaryContainer,
-                foreground: cs.onSecondaryContainer,
-                loading: _signingIn == AuthProvider.google,
-                enabled: _signingIn != AuthProvider.apple,
-                onTap: () => _signIn(AuthProvider.google),
+            ),
+            const SizedBox(height: 28),
+
+            // Google Sign-In Action Item
+            InkWell(
+              onTap: () {
+                // TODO: Wire up your google authentication pipeline here
+                Navigator.of(context).pop();
+              },
+              borderRadius: BorderRadius.circular(32),
+              child: Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  color: buttonBg,
+                  borderRadius: BorderRadius.circular(32),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Clean asset or flat icon for the branding vector
+                    Image.network(
+                      'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_\"G\"_logo.svg',
+                      height: 22,
+                      width: 22,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.g_mobiledata_rounded,
+                        size: 28,
+                        color: WelcomePage.charcoalText,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Continue with Google',
+                      style: textTheme.titleMedium?.copyWith(
+                        color: WelcomePage.charcoalText.withValues(alpha: 0.8),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
-              MorphSignInButton(
-                icon: Icon(Icons.apple_rounded, size: 24, color: cs.surface),
-                label: 'Continue with Apple',
-                background: cs.onSurface,
-                foreground: cs.surface,
-                loading: _signingIn == AuthProvider.apple,
-                enabled: _signingIn != AuthProvider.google,
-                onTap: () => _signIn(AuthProvider.apple),
+            ),
+            const SizedBox(height: 24),
+
+            // Tactile Accent Pill Block 
+            Center(
+              child: Container(
+                height: 56,
+                width: 130,
+                decoration: BoxDecoration(
+                  color: darkPillBg,
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                alignment: Alignment.center,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: const ShapeDecoration(
+                    color: Colors.white,
+                    shape: CircleBorder(), 
+                  ),
+                ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
