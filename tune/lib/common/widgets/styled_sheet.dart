@@ -1,46 +1,151 @@
+import 'package:expressive_sheet/expressive_sheet.dart';
 import 'package:flutter/material.dart';
-import '../values/shape_values.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:material_shapes/material_shapes.dart';
+import 'package:tune/common/extensions/num_extensions.dart';
 
-/// Shared chrome for modal bottom sheets — drag handle + rounded top
-/// corners + optional title. Used by the queue sheet, song context menu,
-/// and auth sheet so they all feel like one family instead of each
-/// re-implementing the handle/padding.
+/// A floating confirmation card that slides up from the bottom edge — the
+/// app's replacement for center dialogs. Fully rounded (28dp) and inset from
+/// the screen edges, with a shaped hero icon and stacked full-width actions.
+/// Destructive confirmations swap to error colors and a burst-shaped icon.
+///
+/// Resolves to `true` only when the confirm action is tapped; dismissing by
+/// scrim tap, drag, or back gesture resolves to `false`.
 class StyledSheet extends StatelessWidget {
-  final String? title;
-  final Widget child;
+  const StyledSheet({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.confirmLabel,
+    this.destructive = false,
+  });
 
-  const StyledSheet({super.key, this.title, required this.child});
+  final IconData icon;
+  final String title;
+  final String message;
+  final String confirmLabel;
+  final bool destructive;
+
+  static Future<bool> show(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String message,
+    required String confirmLabel,
+    bool destructive = false,
+  }) async {
+    final bool? confirmed = await showExpressiveSheet<bool>(
+      context: context,
+      builder: (context) {
+        return StyledSheet(
+          icon: icon,
+          title: title,
+          message: message,
+          confirmLabel: confirmLabel,
+          destructive: destructive,
+        );
+      },
+    );
+
+    return confirmed ?? false;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
-        borderRadius: ShapeValues.sheetTop,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.outlineVariant,
-              borderRadius: BorderRadius.circular(2),
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    final TextTheme tt = Theme.of(context).textTheme;
+
+    final Color heroBackground = destructive
+        ? cs.errorContainer
+        : cs.secondaryContainer;
+    final Color heroForeground = destructive
+        ? cs.onErrorContainer
+        : cs.onSecondaryContainer;
+
+    return Padding(
+      padding: .all(16),
+      // Dialog spec: container width is capped at 560dp on larger screens.
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Material(
+          color: cs.surfaceContainerHigh,
+          shape: RoundedRectangleBorder(
+            // M3 concentric nesting: outer radius = inner radius + padding.
+            // The stadium buttons inside are 28 (56dp tall) behind 24 padding.
+            borderRadius: .circular(52),
+          ),
+          clipBehavior: .antiAlias,
+          child: Padding(
+            padding: const .all(24),
+            child: Column(
+              mainAxisSize: .min,
+              crossAxisAlignment: .stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: ShapeDecoration(
+                      color: heroBackground,
+                      shape: MaterialShapeBorder(
+                        shape: destructive
+                            ? MaterialShapes.sunny
+                            : MaterialShapes.cookie7Sided,
+                      ),
+                    ),
+                    child: Icon(icon, size: 32, color: heroForeground),
+                  ),
+                ),
+                16.gap,
+                Text(
+                  title,
+                  textAlign: .center,
+                  style: GoogleFonts.unbounded(
+                    textStyle: tt.titleLarge,
+                    fontWeight: .w700,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                16.gap,
+                Text(
+                  message,
+                  textAlign: .center,
+                  style: tt.bodyMedium?.copyWith(
+                    height: 1.4,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+                24.gap,
+                SizedBox(
+                  height: 56,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      textStyle: tt.titleMedium,
+                      backgroundColor: destructive ? cs.error : null,
+                      foregroundColor: destructive ? cs.onError : null,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop(true);
+                    },
+                    child: Text(confirmLabel),
+                  ),
+                ),
+                8.gap,
+                SizedBox(
+                  height: 56,
+                  child: OutlinedButton(
+                    style: FilledButton.styleFrom(textStyle: tt.titleMedium),
+                    onPressed: () {
+                      Navigator.of(context).pop(false);
+                    },
+                    child: const Text('Cancel'),
+                  ),
+                ),
+              ],
             ),
           ),
-          if (title != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(title!, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-              ),
-            ),
-          Flexible(child: child),
-        ],
+        ),
       ),
     );
   }

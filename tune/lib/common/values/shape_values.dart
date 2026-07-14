@@ -1,16 +1,19 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/painting.dart';
+import 'package:material_shapes/material_shapes.dart';
 
-/// Shared corner-radius tokens so cards, sheets, and artwork stay visually
-/// consistent. Keep this separate from [TuneMotion] (theme/motion.dart) —
-/// this file is static geometry, motion.dart is the animated transitions
-/// between shapes/states.
-class ShapeValues {
-  ShapeValues._();
+abstract final class ShapeValues {
+  static final RoundedPolygon cover = MaterialShapes.clover4Leaf;
+  static final RoundedPolygon coverFocused = MaterialShapes.cookie7Sided;
 
-  static const small = BorderRadius.all(Radius.circular(8));
-  static const medium = BorderRadius.all(Radius.circular(12));
-  static const large = BorderRadius.all(Radius.circular(16));
-  static const extraLarge = BorderRadius.all(Radius.circular(24));
+  static ShapeBorder coverBorder(double t) {
+    final double tc = t.clamp(0.0, 1.0);
+    final MaterialShapeBorder normal = MaterialShapeBorder(shape: cover);
+    if (tc <= 0) return normal;
+    final MaterialShapeBorder focused = MaterialShapeBorder(
+      shape: coverFocused,
+    );
+    if (tc >= 1) return focused;
 
-  static const sheetTop = BorderRadius.vertical(top: Radius.circular(28));
+    return normal.lerpTo(focused, tc)!;
+  }
 }

@@ -44,12 +44,17 @@ dependencies:
   get_it: ^9.2.1
   url_launcher: ^6.3.2
   package_info_plus: ^10.2.0
+  expressive_sheet:
+    path: ./packages/expressive_sheet
+  expressive_snack:
+    path: ./packages/expressive_snack
+  expressive_loading_indicator:
+    path: ./packages/expressive_loading_indicator
   material_shapes:
     path: ./packages/material_shapes
   material_wavy_progress_indicator:
     path: ./packages/material_wavy_progress_indicator
-  expressive_loading_indicator:
-    path: ./packages/expressive_loading_indicator
+ 
 
 
 dev_dependencies:
@@ -76,9 +81,10 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  assets:
+    - assets/config.json
+    - assets/vectors/
+    - assets/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

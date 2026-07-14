@@ -1,0 +1,231 @@
+import 'package:tune/common/helpers/locator.dart';
+import 'package:tune/common/widgets/bottom_padding.dart';
+import 'package:tune/common/helpers/coming_soon.dart';
+import 'package:tune/common/widgets/styled_back_button.dart';
+import 'package:tune/common/widgets/styled_sheet.dart';
+import 'package:expressive_snack/expressive_snack.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tune/common/extensions/num_extensions.dart';
+import 'package:tune/features/downloads/pages/downloads_page.dart';
+import 'package:tune/features/menu/cubits/theme_mode_cubit.dart';
+import 'package:tune/features/menu/widgets/developer_signature.dart';
+import 'package:tune/features/menu/widgets/menu_header.dart';
+import 'package:tune/features/menu/widgets/menu_section.dart';
+import 'package:tune/features/menu/widgets/menu_tile.dart';
+import 'package:tune/features/menu/widgets/version_indicator.dart';
+
+class MenuPage extends StatelessWidget {
+  const MenuPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(appBar: _AppBar(), body: _Body());
+  }
+}
+
+class _Body extends StatefulWidget {
+  const _Body();
+
+  @override
+  State<_Body> createState() => _BodyState();
+}
+
+class _BodyState extends State<_Body> {
+  // TODO(kamran): local until real settings storage lands.
+  bool _wifiOnly = true;
+  bool _alerts = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme cs = Theme.of(context).colorScheme;
+
+    return ListView(
+      padding: .fromLTRB(16, 8, 16, BottomPadding.of(context)),
+      children: [
+        const MenuHeader(),
+        56.gap,
+        MenuSection(
+          label: 'Library',
+          children: [
+            MenuTile(
+              icon: Icons.download_outlined,
+              title: 'Downloads',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) {
+                      return DownloadsPage();
+                    },
+                  ),
+                );
+              },
+            ),
+            MenuTile(
+              icon: Icons.history_outlined,
+              title: 'Listening history',
+              onTap: () {
+                ComingSoon.show(context);
+              },
+            ),
+            MenuTile(
+              icon: Icons.podcasts_outlined,
+              title: 'Subscriptions',
+              onTap: () {
+                ComingSoon.show(context);
+              },
+            ),
+          ],
+        ),
+        32.gap,
+        MenuSection(
+          label: 'Preferences',
+          children: [
+            MenuTile(
+              icon: Icons.brightness_6_outlined,
+              title: 'Dark theme',
+              trailing: BlocBuilder<ThemeModeCubit, ThemeMode>(
+                bloc: locator<ThemeModeCubit>(),
+                builder: (context, state) {
+                  final ThemeMode themeMode = state;
+
+                  return Switch(
+                    value: themeMode == .dark,
+                    thumbIcon: const WidgetStateProperty<Icon?>.fromMap({
+                      WidgetState.selected: Icon(Icons.dark_mode_rounded),
+                      WidgetState.any: Icon(Icons.light_mode_rounded),
+                    }),
+                    onChanged: (_) {
+                      locator<ThemeModeCubit>().toggle();
+                    },
+                  );
+                },
+              ),
+            ),
+            MenuTile(
+              icon: Icons.download_outlined,
+              title: 'Download over Wi-Fi only',
+              trailing: Switch(
+                value: _wifiOnly,
+                // Off means "any network", which no single icon says
+                // honestly — the X just negates the label.
+                thumbIcon: const WidgetStateProperty<Icon?>.fromMap({
+                  WidgetState.selected: Icon(Icons.wifi_rounded),
+                  WidgetState.any: Icon(Icons.close_rounded),
+                }),
+                onChanged: (value) {
+                  setState(() => _wifiOnly = value);
+                },
+              ),
+            ),
+            MenuTile(
+              icon: Icons.notifications_outlined,
+              title: 'New episode alerts',
+              trailing: Switch(
+                value: _alerts,
+                // The tile's leading icon already says "notifications";
+                // a bell on the thumb would repeat it.
+                thumbIcon: const WidgetStateProperty<Icon?>.fromMap({
+                  WidgetState.selected: Icon(Icons.check_rounded),
+                  WidgetState.any: Icon(Icons.close_rounded),
+                }),
+                onChanged: (value) {
+                  setState(() => _alerts = value);
+                },
+              ),
+            ),
+          ],
+        ),
+        32.gap,
+        MenuSection(
+          label: 'Support',
+          children: [
+            MenuTile(
+              icon: Icons.workspace_premium_outlined,
+              title: 'Support the developer',
+              background: cs.secondaryContainer,
+              foreground: cs.onSecondaryContainer,
+              onTap: () {
+                ComingSoon.show(context);
+              },
+            ),
+            MenuTile(
+              icon: Icons.lightbulb_outlined,
+              title: 'Suggest a feature',
+              onTap: () {
+                ComingSoon.show(context);
+              },
+            ),
+            MenuTile(
+              icon: Icons.alternate_email_outlined,
+              title: 'Report an issue',
+              onTap: () {
+                showExpressiveSnack(
+                  context: context,
+                  message: 'Subscribe to premium for support',
+                  icon: Icons.handshake,
+                );
+              },
+            ),
+          ],
+        ),
+        32.gap,
+        MenuSection(
+          label: 'Account',
+          children: [
+            MenuTile(
+              icon: Icons.logout_outlined,
+              title: 'Log out',
+              onTap: () {
+                StyledSheet.show(
+                  context,
+                  icon: Icons.logout_rounded,
+                  title: 'Log out?',
+                  message:
+                      'You can sign back in anytime. Your subscriptions '
+                      'and downloads stay on this device.',
+                  confirmLabel: 'Log out',
+                );
+              },
+            ),
+            MenuTile(
+              icon: Icons.delete_forever_outlined,
+              title: 'Delete account',
+              foreground: cs.error,
+              onTap: () {
+                StyledSheet.show(
+                  context,
+                  icon: Icons.delete_forever_rounded,
+                  title: 'Delete account?',
+                  message:
+                      'This permanently erases your account, subscriptions, '
+                      "and listening history. This can't be undone.",
+                  confirmLabel: 'Delete forever',
+                  destructive: true,
+                );
+              },
+            ),
+          ],
+        ),
+        64.gap,
+        const VersionIndicator(),
+        8.gap,
+        const DeveloperSignature(),
+        16.gap,
+      ],
+    );
+  }
+}
+
+class _AppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _AppBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(leading: const StyledBackButton());
+  }
+
+  @override
+  Size get preferredSize => Size.fromHeight(kToolbarHeight);
+}

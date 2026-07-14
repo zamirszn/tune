@@ -1,17 +1,12 @@
+import 'package:expressive_loading_indicator/expressive_loading_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:motor/motor.dart';
 
-/// A full-width sign-in button with an M3-expressive press morph: round
-/// at rest, springing to a rounded square while pressed.
+/// A full-width sign-in button with the M3 expressive press morph: round at
+/// rest, springing to a rounded square while pressed.
 ///
-/// While [loading], the content is replaced by a spinner and taps are
-/// ignored. While not [enabled], the button fades and ignores taps.
-///
-/// Note: bunpod's own version swaps in a custom `LoadingIndicator` from
-/// their vendored `expressive_loading_indicator` package for the loading
-/// state. That package isn't a public dependency here, so this uses a
-/// plain [CircularProgressIndicator] instead — same behavior, no extra
-/// package required. Swap it out later if you vendor that package too.
+/// While [loading], the content is replaced by a [LoadingIndicator] and taps
+/// are ignored. While not [enabled], the button fades and ignores taps.
 class MorphSignInButton extends StatefulWidget {
   const MorphSignInButton({
     super.key,
@@ -47,16 +42,17 @@ class _MorphSignInButtonState extends State<MorphSignInButton> {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final TextTheme tt = Theme.of(context).textTheme;
+    final bool reduceMotion =
+        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
 
     return SingleMotionBuilder(
       motion: const MaterialSpringMotion.standardSpatialFast(),
       value: _pressed ? 1.0 : 0.0,
       active: !reduceMotion,
-      builder: (context, t, child) {
-        final tc = t.clamp(0.0, 1.0);
-        final radius = BorderRadius.circular(32 - 12 * tc);
+      builder: (BuildContext context, double t, Widget? child) {
+        final double tc = t.clamp(0.0, 1.0);
+        final BorderRadius radius = .circular(32 - 12 * tc);
 
         return Transform.scale(
           scale: 1 - 0.03 * tc,
@@ -81,21 +77,24 @@ class _MorphSignInButtonState extends State<MorphSignInButton> {
         child: widget.loading
             ? Center(
                 child: SizedBox.square(
-                  dimension: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation(widget.foreground),
+                  dimension: 40,
+                  child: FittedBox(
+                    child: LoadingIndicator(
+                      activeIndicatorColor: widget.foreground,
+                      containerColor: Colors.transparent,
+                      semanticsLabel: 'Signing in',
+                    ),
                   ),
                 ),
               )
             : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+                mainAxisAlignment: .center,
+                children: <Widget>[
                   widget.icon,
                   const SizedBox(width: 12),
                   Text(
                     widget.label,
-                    style: textTheme.titleMedium?.copyWith(
+                    style: tt.titleMedium?.copyWith(
                       color: widget.foreground,
                       fontWeight: FontWeight.w600,
                     ),

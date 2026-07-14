@@ -1,123 +1,128 @@
+import 'package:tune/features/auth/models/auth_provider.dart';
+import 'package:tune/common/widgets/bottom_padding.dart';
+import 'package:tune/common/values/asset_values.dart';
+import 'dart:async';
+
+import 'package:expressive_sheet/expressive_sheet.dart';
 import 'package:flutter/material.dart';
-import 'package:tune/features/welcome/pages/welcome_page.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:tune/common/extensions/num_extensions.dart';
+import 'package:tune/features/auth/widgets/morph_sign_in_button.dart';
+import 'package:tune/features/home/pages/home_page.dart';
 
-class AuthSheet extends StatelessWidget {
-  const AuthSheet({super.key});
+/// Sign-in as a floating expressive sheet: a headline and two sign-in
+/// buttons.
+///
+/// UI only. Tapping a provider shows a short loading beat, then closes the
+/// sheet and replaces the page under it with home. Dragging the sheet away
+/// during the beat cancels it.
+class AuthSheet extends StatefulWidget {
+  const AuthSheet({super.key, this.onSignedIn});
 
-  static const Color modalBg = Color(0xFFEFECE0);    // Inner container sand color
-  static const Color buttonBg = Color(0xFFE4DFD5);   // Soft cream-tan for authentication button
-  static const Color darkPillBg = Color(0xFF1E1E1B); // The dark physical accent block at the bottom
+  /// Invoked after the sign-in beat. Defaults to entering the app home.
+  final VoidCallback? onSignedIn;
 
-  static void show(BuildContext context) {
-    showModalBottomSheet(
+  static Future<void> show(BuildContext context) {
+    return showExpressiveSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent, // Keeps the outer bounding space invisible for the floating look
-      elevation: 0,
       builder: (context) => const AuthSheet(),
     );
   }
 
   @override
+  State<AuthSheet> createState() => _AuthSheetState();
+}
+
+class _AuthSheetState extends State<AuthSheet> {
+  static const Duration _signInBeat = Duration(seconds: 3);
+
+  Timer? _timer;
+  AuthProvider? _signingIn;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _signIn(AuthProvider provider) {
+    if (_signingIn != null) return;
+    setState(() => _signingIn = provider);
+
+    _timer = Timer(_signInBeat, () {
+      if (!mounted) return;
+      if (widget.onSignedIn != null) {
+        widget.onSignedIn!();
+        return;
+      }
+      final NavigatorState navigator = Navigator.of(context);
+      navigator.pop();
+      navigator.pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => const HomePage()),
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    final TextTheme tt = Theme.of(context).textTheme;
 
     return Padding(
-      // Provides the distinct floating margins from screen boundaries
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        bottom: MediaQuery.of(context).padding.bottom + 16,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: modalBg,
-          borderRadius: BorderRadius.circular(42), // Material 3 Expressive Ultra-Large Corners
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header Text
-            Center(
-              child: Text(
-                'Tune in.',
-                style: textTheme.headlineMedium?.copyWith(
-                  color: WelcomePage.charcoalText,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 32,
-                  letterSpacing: -0.8,
-                ),
-              ),
-            ),
-            const SizedBox(height: 28),
-
-            // Google Sign-In Action Item
-            InkWell(
-              onTap: () {
-                // TODO: Wire up your google authentication pipeline here
-                Navigator.of(context).pop();
-              },
-              borderRadius: BorderRadius.circular(32),
-              child: Container(
-                height: 60,
-                decoration: BoxDecoration(
-                  color: buttonBg,
-                  borderRadius: BorderRadius.circular(32),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Clean asset or flat icon for the branding vector
-                    Image.network(
-                      'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_\"G\"_logo.svg',
-                      height: 22,
-                      width: 22,
-                      errorBuilder: (_, __, ___) => const Icon(
-                        Icons.g_mobiledata_rounded,
-                        size: 28,
-                        color: WelcomePage.charcoalText,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Continue with Google',
-                      style: textTheme.titleMedium?.copyWith(
-                        color: WelcomePage.charcoalText.withValues(alpha: 0.8),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Tactile Accent Pill Block 
-            Center(
-              child: Container(
-                height: 56,
-                width: 130,
-                decoration: BoxDecoration(
-                  color: darkPillBg,
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                alignment: Alignment.center,
-                child: Container(
-                  width: 20,
-                  height: 20,
-                  decoration: const ShapeDecoration(
-                    color: Colors.white,
-                    shape: CircleBorder(), 
+      padding: EdgeInsets.fromLTRB(16, 0, 16, BottomPadding.of(context)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Material(
+          color: cs.surfaceContainerHigh,
+          shape: RoundedRectangleBorder(
+            // Concentric with the round buttons behind 24 padding.
+            borderRadius: BorderRadius.circular(52),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: .min,
+              crossAxisAlignment: .stretch,
+              children: [
+                8.gap,
+                Text(
+                  'Tune in.',
+                  textAlign: TextAlign.center,
+                  style: tt.headlineLarge?.copyWith(
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
                   ),
                 ),
-              ),
+                24.gap,
+                MorphSignInButton(
+                  icon: Image.asset(AssetValues.googleG, width: 24, height: 24),
+                  label: 'Continue with Google',
+                  background: cs.secondaryContainer,
+                  foreground: cs.onSecondaryContainer,
+                  loading: _signingIn == AuthProvider.google,
+                  enabled: _signingIn != AuthProvider.apple,
+                  onTap: () => _signIn(AuthProvider.google),
+                ),
+                8.gap,
+                MorphSignInButton(
+                  icon: SvgPicture.asset(
+                    AssetValues.appleLogo,
+                    width: 22,
+                    height: 22,
+                    colorFilter: ColorFilter.mode(cs.surface, BlendMode.srcIn),
+                  ),
+                  label: 'Continue with Apple',
+                  background: cs.onSurface,
+                  foreground: cs.surface,
+                  loading: _signingIn == AuthProvider.apple,
+                  enabled: _signingIn != AuthProvider.google,
+                  onTap: () => _signIn(AuthProvider.apple),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

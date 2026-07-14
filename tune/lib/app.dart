@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:tune/features/welcome/pages/welcome_page.dart';
-import 'tune_flutter.dart';
+
+import 'bunpod_flutter.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -10,7 +10,9 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeModeCubit, ThemeMode>(
       bloc: locator<ThemeModeCubit>(),
-      builder: (context, themeMode) {
+      builder: (context, state) {
+        final ThemeMode themeMode = state;
+
         return MaterialApp(
           title: AppValues.title,
           debugShowCheckedModeBanner: false,
@@ -18,10 +20,13 @@ class App extends StatelessWidget {
           theme: MaterialThemes.light,
           darkTheme: MaterialThemes.dark,
           builder: (context, child) {
-            final mediaQueryData = MediaQuery.of(context);
+            final MediaQueryData mediaQueryData = MediaQuery.of(context);
+
             return MediaQuery(
               data: mediaQueryData.copyWith(
-                textScaler: mediaQueryData.textScaler.clamp(maxScaleFactor: 1.1),
+                textScaler: mediaQueryData.textScaler.clamp(
+                  maxScaleFactor: 1.1,
+                ),
               ),
               child: child!,
             );

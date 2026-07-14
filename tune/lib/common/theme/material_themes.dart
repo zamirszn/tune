@@ -1,55 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Light/dark [ThemeData], seeded for a consistent Material 3 color scheme
-/// across the whole app. Swap [_seedColor] for dynamic color derived from
-/// album art once that's wired up.
-class MaterialThemes {
-  MaterialThemes._();
+const MaterialColor seedColor = MaterialColor(0xffF5A623, {});
 
-  static const _seedColor = Color(0xFFFF4D6D);
+const PageTransitionsTheme _pageTransitionsTheme = PageTransitionsTheme(
+  builders: {
+    .android: FadeForwardsPageTransitionsBuilder(),
+    .iOS: FadeForwardsPageTransitionsBuilder(),
+  },
+);
 
-  static ThemeData get light => _build(Brightness.light);
-  static ThemeData get dark => _build(Brightness.dark);
+abstract final class MaterialThemes {
+  static ThemeData get light => _theme(.light);
 
-  static ThemeData _build(Brightness brightness) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: _seedColor,
-      brightness: brightness,
-    );
+  static ThemeData get dark => _theme(.dark);
 
-    final base = ThemeData(
-      useMaterial3: true,
-      colorScheme: colorScheme,
+  // GoogleFonts.googleSansTextTheme() without a base bakes in light-theme
+  // text colors, breaking dark mode; derive it from the brightness-correct
+  // base theme instead.
+  static ThemeData _theme(Brightness brightness) {
+    final ThemeData base = ThemeData(
+      colorSchemeSeed: Colors.primaries.elementAt(12),
       brightness: brightness,
     );
 
     return base.copyWith(
-      textTheme: GoogleFonts.interTextTheme(base.textTheme),
-      scaffoldBackgroundColor: colorScheme.surface,
-      appBarTheme: AppBarTheme(
-        backgroundColor: colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        titleTextStyle: GoogleFonts.inter(
-          color: colorScheme.onSurface,
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: colorScheme.surfaceContainer,
-        indicatorColor: colorScheme.secondaryContainer,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-      ),
-      pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
-          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
-          TargetPlatform.iOS: FadeForwardsPageTransitionsBuilder(),
-        },
-      ),
+      textTheme: GoogleFonts.googleSansTextTheme(base.textTheme),
+      pageTransitionsTheme: _pageTransitionsTheme,
     );
   }
 }

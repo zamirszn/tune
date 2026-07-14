@@ -1,105 +1,160 @@
+import 'package:tune/common/extensions/duration_extensions.dart';
+import 'package:tune/common/widgets/bottom_padding.dart';
+import 'package:tune/common/widgets/styled_back_button.dart';
+import 'package:tune/features/channel/values/mock_channels.dart';
+import 'package:tune/features/home/models/episode.dart';
+import 'package:tune/features/channel/models/channel.dart';
+import 'package:tune/features/channel/pages/channel_page.dart';
 import 'package:flutter/material.dart';
-import '../../../common/values/mock_data.dart';
-import '../../../common/widgets/artwork.dart';
-import '../../../common/widgets/expressive_play_button.dart';
-import '../widgets/queue_sheet.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:material_wavy_progress_indicator/material_wavy_progress_indicator.dart';
+import 'package:tune/common/extensions/num_extensions.dart';
+import 'package:tune/features/player/widgets/player_controls.dart';
 
-/// The full "Now Playing" screen — large artwork, expressive morphing
-/// play button, progress bar, and quick access to queue/lyrics via a
-/// bottom sheet, matching YouTube Music's full player.
-class PlayerPage extends StatelessWidget {
-  final Song song;
-  final bool isPlaying;
-  final VoidCallback onPlayPause;
-
+class PlayerPage extends StatefulWidget {
   const PlayerPage({
     super.key,
-    required this.song,
-    required this.isPlaying,
-    required this.onPlayPause,
+    required this.episode,
+    this.fromChannel = false,
   });
+
+  final Episode episode;
+
+  /// Whether the player was opened from this episode's channel page. When true,
+  /// tapping the channel name pops back instead of pushing a duplicate page.
+  final bool fromChannel;
+
+  static Route<void> route(Episode episode, {bool fromChannel = false}) {
+    return MaterialPageRoute<void>(
+      builder: (context) =>
+          PlayerPage(episode: episode, fromChannel: fromChannel),
+    );
+  }
+
+  @override
+  State<PlayerPage> createState() => _PlayerPageState();
+}
+
+class _PlayerPageState extends State<PlayerPage> {
+  late bool _playing = widget.episode.playing;
+  bool _fav = false;
+
+  void _openChannel() {
+    if (widget.fromChannel) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final Channel? channel = channelByName(widget.episode.channel);
+    if (channel != null) {
+      Navigator.of(context).push(ChannelPage.route(channel));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final Episode episode = widget.episode;
+    final ColorScheme cs = episode.scheme(context);
+    final TextTheme tt = Theme.of(context).textTheme;
+
+    final Duration remaining = episode.total - episode.listened;
+    // Finished episodes have nothing left to count down — show the full
+    // duration again, without the leading minus.
+    final bool ended = remaining <= Duration.zero;
+    final String timeLabel = ended
+        ? episode.total.remainingLabel
+        : '-${remaining.remainingLabel}';
+
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: cs.surface,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text('Now Playing'),
-        actions: [
-          IconButton(icon: const Icon(Icons.more_vert_rounded), onPressed: () {}),
-        ],
+        backgroundColor: cs.surface,
+        leading: const StyledBackButton(),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            children: [
-              const Spacer(),
-              AspectRatio(
-                aspectRatio: 1,
-                child: Artwork(seed: song.artworkSeed, size: 400, borderRadius: BorderRadius.circular(24)),
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            16.gap,
+            GestureDetector(
+              onTap: _openChannel,
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    episode.channel.toUpperCase(),
+                    style: tt.labelMedium?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  4.gap,
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ],
               ),
-              const SizedBox(height: 32),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(song.title, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 4),
-                    Text(song.artist, style: theme.textTheme.bodyLarge),
-                  ],
+            ),
+            12.gap,
+            Padding(
+              padding: const EdgeInsets.only(right: 56),
+              child: Text(
+                episode.title,
+                style: tt.displaySmall?.copyWith(
+                  color: cs.primary,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 16),
-              Slider(value: 0.35, onChanged: (_) {}),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text('1:12'),
-                  Text('3:24'),
-                ],
+            ),
+            const Spacer(),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Text(
+                timeLabel,
+                style: GoogleFonts.unbounded(
+                  color: cs.onSurface,
+                  fontSize: 56,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -2,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  IconButton(icon: const Icon(Icons.shuffle_rounded), onPressed: () {}),
-                  IconButton(icon: const Icon(Icons.skip_previous_rounded, size: 36), onPressed: () {}),
-                  ExpressivePlayButton(isPlaying: isPlaying, onTap: onPlayPause, size: 72),
-                  IconButton(icon: const Icon(Icons.skip_next_rounded, size: 36), onPressed: () {}),
-                  IconButton(icon: const Icon(Icons.repeat_rounded), onPressed: () {}),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(icon: const Icon(Icons.favorite_border_rounded), onPressed: () {}),
-                  TextButton.icon(
-                    onPressed: () => showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      builder: (_) => QueueSheet(currentSong: song),
-                    ),
-                    icon: const Icon(Icons.queue_music_rounded),
-                    label: const Text('Queue'),
-                  ),
-                  IconButton(icon: const Icon(Icons.lyrics_outlined), onPressed: () {}),
-                  IconButton(icon: const Icon(Icons.share_outlined), onPressed: () {}),
-                ],
-              ),
-              const Spacer(),
-            ],
-          ),
+            ),
+            8.gap,
+            _ProgressBar(progress: episode.progress, scheme: cs),
+            24.gap,
+            PlayerControls(
+              scheme: cs,
+              playing: _playing,
+              fav: _fav,
+              onPlayPause: () => setState(() => _playing = !_playing),
+              onFav: () => setState(() => _fav = !_fav),
+            ),
+            const BottomPadding(),
+          ],
         ),
       ),
+    );
+  }
+}
+
+class _ProgressBar extends StatelessWidget {
+  const _ProgressBar({required this.progress, required this.scheme});
+
+  final double progress;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme cs = scheme;
+    return WavyLinearProgressIndicator(
+      value: progress.clamp(0.0, 1.0),
+      color: cs.primary,
+      trackColor: cs.onSurface.withValues(alpha: 0.14),
+      stopIndicatorColor: cs.primary,
     );
   }
 }

@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-/// Drives the app-wide [ThemeMode]. Registered as a singleton in the
-/// locator and read once at the root of [App] via BlocBuilder.
 class ThemeModeCubit extends Cubit<ThemeMode> {
-  ThemeModeCubit() : super(ThemeMode.system);
+  ThemeModeCubit() : super(.system);
 
-  // TODO: persist selection to shared_preferences
-  void toggle() {
-    emit(state == ThemeMode.light ? ThemeMode.dark : ThemeMode.light);
+  // TOOD: persist to shared preferences
+  Future<void> toggle() async {
+    final ThemeMode newMode = state == .light ? .dark : .light;
+
+    emit(newMode);
   }
-
-  void setMode(ThemeMode mode) => emit(mode);
 }

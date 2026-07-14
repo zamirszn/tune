@@ -1,17 +1,22 @@
+import 'package:tune/common/widgets/bottom_padding.dart';
+import 'package:tune/features/auth/widgets/auth_sheet.dart';
+import 'package:tune/common/values/asset_values.dart';
 import 'package:flutter/material.dart';
-import '../../auth/widgets/auth_sheet.dart';
-import '../widgets/album_wall.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:tune/common/extensions/num_extensions.dart';
+import 'package:tune/features/channel/values/mock_channels.dart';
+import 'package:tune/features/welcome/widgets/channel_wall.dart';
 
+/// The first impression of BunPod: a living wall of channel artwork behind a
+/// scrim, the wordmark, a short promise, and a single clear action. The
+/// foreground copy and CTA are static — only the wall animates. The wall stays
+/// tappable (tap a cover to reshape it) because the overlays above it are
+/// hit-transparent: the scrim is wrapped in [IgnorePointer] and the copy/CTA are
+/// bottom-anchored rather than filling the screen.
 class WelcomePage extends StatelessWidget {
   const WelcomePage({super.key, this.onStart});
 
   final VoidCallback? onStart;
-
-  // BunPod-accurate Warm Editorial Palette
-  static const Color creamBg = Color(0xFFF6F4EB);
-  static const Color oliveGreen = Color(0xFF5D5E1A);
-  static const Color charcoalText = Color(0xFF1C1C16);
-  static const Color softGreyText = Color(0xFF706F68);
 
   void _start(BuildContext context) {
     if (onStart != null) {
@@ -23,130 +28,116 @@ class WelcomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    final TextTheme text = Theme.of(context).textTheme;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: creamBg,
+      backgroundColor: cs.surface,
       body: Stack(
         fit: StackFit.expand,
-        children: [
-          // 1. The living wall of YouTube Music artwork
-          const AlbumWall(),
+        children: <Widget>[
+          // ── Living channel wall (interactive) ─────────────────────────
+          ChannelWall(channels: mockChannels),
 
-          // 2. Linear Scrim matching the exact Warm Cream tone
+          // ── Scrim: fade to solid where the copy and CTA live so text stays
+          //    legible. A dark veil over the mosaic reads as moody depth, but a
+          //    light veil just makes the covers look washed out — so in light
+          //    mode we keep the top clear and let the art stay vibrant.
+          //    IgnorePointer so it never eats taps meant for the wall. ────────
           IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    creamBg.withValues(alpha: 0.1),
-                    creamBg.withValues(alpha: 0.45),
-                    creamBg.withValues(alpha: 0.9),
-                    creamBg,
-                  ],
-                  stops: const [0.0, 0.40, 0.70, 0.88],
+                  colors: isDark
+                      ? <Color>[
+                          cs.surface.withValues(alpha: 0.30),
+                          cs.surface.withValues(alpha: 0.55),
+                          cs.surface.withValues(alpha: 0.94),
+                          cs.surface,
+                        ]
+                      : <Color>[
+                          cs.surface.withValues(alpha: 0.0),
+                          cs.surface.withValues(alpha: 0.0),
+                          cs.surface.withValues(alpha: 0.88),
+                          cs.surface,
+                        ],
+                  stops: isDark
+                      ? const <double>[0.0, 0.42, 0.72, 0.9]
+                      : const <double>[0.0, 0.46, 0.74, 0.88],
                 ),
               ),
             ),
           ),
 
-          // 3. Foreground Branding & Typography
-          SafeArea(
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Brand Wordmark + Expressive Shape Logo
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: const ShapeDecoration(
-                            color: Color(0xFFD6C561), // BunPod's muted gold accent
-                            // TODO: Pass your 8-pointed scalloped shape from material_shapes here
-                            shape: CircleBorder(), 
-                          ),
+          // ── Foreground (static, bottom-anchored) ──────────────────────
+          //    Only occupies the bottom, so the top mosaic stays tappable.
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  24.gap,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      SvgPicture.asset(
+                        isDark
+                            ? AssetValues.logoHorizontalDark
+                            : AssetValues.logoHorizontalLight,
+                        height: 40,
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'A world in every voice.',
+                        style: text.headlineMedium?.copyWith(
+                          color: cs.onSurface,
+                          fontWeight: FontWeight.w700,
+                          height: 1.15,
+                          letterSpacing: -0.4,
                         ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'TUNE',
-                          style: textTheme.titleLarge?.copyWith(
-                            color: charcoalText,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
-                          ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'The ideas that quietly shape a life are being '
+                        'spoken now. Begin by listening.',
+                        style: text.bodyLarge?.copyWith(
+                          color: cs.onSurfaceVariant,
+                          height: 1.4,
                         ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  FilledButton(
+                    onPressed: () => _start(context),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: cs.primary,
+                      foregroundColor: cs.onPrimary,
+                      minimumSize: const Size.fromHeight(60),
+                      shape: const StadiumBorder(),
+                      textStyle: text.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        Text('Start Listening'),
+                        SizedBox(width: 8),
+                        Icon(Icons.arrow_forward_rounded, size: 20),
                       ],
                     ),
-                    const SizedBox(height: 18),
-
-                    // Main Headline
-                    Text(
-                      'Every track, your shape.',
-                      style: textTheme.headlineMedium?.copyWith(
-                        color: charcoalText,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 34,
-                        height: 1.1,
-                        letterSpacing: -1.0,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Subtitle / Description
-                    Text(
-                      'Search, play, and organize the music you already listen to — with an interface built to move.',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: softGreyText,
-                        fontSize: 16,
-                        height: 1.4,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 36),
-
-                    // CTA Start Button
-                    FilledButton(
-                      onPressed: () => _start(context),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: oliveGreen,
-                        foregroundColor: creamBg,
-                        minimumSize: const Size.fromHeight(64),
-                        elevation: 0,
-                        shape: const StadiumBorder(),
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Start Listening',
-                            style: textTheme.titleMedium?.copyWith(
-                              color: creamBg,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 20,
-                            color: creamBg,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                  ),
+                  8.gap,
+                  const BottomPadding(),
+                ],
               ),
             ),
           ),

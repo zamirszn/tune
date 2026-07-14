@@ -120,6 +120,20 @@ packages:
       relative: true
     source: path
     version: "1.0.0"
+  expressive_sheet:
+    dependency: "direct main"
+    description:
+      path: "packages/expressive_sheet"
+      relative: true
+    source: path
+    version: "1.0.0"
+  expressive_snack:
+    dependency: "direct main"
+    description:
+      path: "packages/expressive_snack"
+      relative: true
+    source: path
+    version: "1.0.0"
   extended_image:
     dependency: "direct main"
     description:
