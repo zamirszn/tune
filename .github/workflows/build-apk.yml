@@ -27,16 +27,20 @@ jobs:
           java-version: "17"
           cache: gradle
 
+      - name: Check project files
+        run: |
+          pwd
+          ls -la
+
       - name: Make Gradle executable
-        run: chmod +x gradlew
+        run: chmod +x ./gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew :app:assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: tune-debug-apk
-          path: |
-            tune/**/build/outputs/apk/debug/*.apk
-            tune/**/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          path: tune/**/build/outputs/apk/debug/*.apk
