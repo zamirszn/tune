@@ -55,6 +55,7 @@ dependencies:
   material_wavy_progress_indicator:
     path: ./packages/material_wavy_progress_indicator
   youtube_explode_dart: ^3.1.0
+  shared_preferences: ^2.5.5
  
 
 
