@@ -1,46 +1,68 @@
-name: Build Android APK
+name: Build Flutter APK
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
+    name: Build Flutter APK
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: tune
+    timeout-minutes: 90  # prevent exit code 143 (timeout)
 
     steps:
-      - name: Checkout repository
+      # Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      # Setup Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.5'
+          channel: 'stable'
+
+      # Setup Java (required for Gradle)
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: "17"
-          cache: gradle
+          distribution: 'zulu'
+          java-version: '17'
 
-      - name: Check project files
+      # Setup Gradle cache to speed up builds
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}
+
+      # Increase Gradle memory (fix OutOfMemory & exit 143 issues)
+      - name: Configure Gradle properties
         run: |
-          pwd
-          ls -la
+          echo "org.gradle.jvmargs=-Xmx4096m -XX:+HeapDumpOnOutOfMemoryError" >> android/gradle.properties
+          echo "android.useAndroidX=true" >> android/gradle.properties
+          echo "android.enableJetifier=true" >> android/gradle.properties
+        working-directory: tune
 
-      - name: Make Gradle executable
-        run: chmod +x ./gradlew
+      # Get dependencies
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: tune
 
-      - name: Build Debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
+      # Build the APK (with reduced tree-shaking to save CPU)
+      - name: Build APK
+        run: flutter build apk --release --no-tree-shake-icons
+        working-directory: tune
 
+      # Upload the APK as an artifact
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: tune-debug-apk
-          if-no-files-found: error
-          path: tune/**/build/outputs/apk/debug/*.apk
+          name: tune-release-apk
+          path: tune/build/app/outputs/flutter-apk/app-release.apk
