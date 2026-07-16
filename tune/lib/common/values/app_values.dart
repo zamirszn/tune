@@ -1,10 +1,10 @@
 abstract final class AppValues {
-  static String get title => 'BunPod';
+  static String get title => 'TUNE';
   static String get makerImageUrl =>
-      'https://avatars.githubusercontent.com/u/59581562?v=4';
-  static String get makerName => 'Kamran Bekirov';
-  static String get makerXHandle => '@kamranbekirovyz';
-  static String get makerXUrl => 'https://x.com/kamranbekirovyz';
-  static String get makerPortfolioUrl => 'https://kamranbekirov.com';
-  static String get makerEmail => 'me@kamranbekirov.com';
+      'https://avatars.githubusercontent.com/u/31168776?v=4';
+  static String get makerName => 'Mubarak Lawal';
+  static String get makerXHandle => '@zamirszn';
+  static String get makerXUrl => 'https://x.com/zamirszn';
+  static String get makerPortfolioUrl => 'https://mubaraklawal.fly.dev';
+  static String get makerEmail => 'mubaraklawal52@gmail.com';
 }

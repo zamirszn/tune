@@ -176,7 +176,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget _buildPage(BuildContext context, String? channel) {
     final List<Episode> visible = channel == null
         ? mockEpisodes
-        : mockEpisodes.where((e) => e?.channel == channel).toList();
+        : mockEpisodes.where((e) => e.channel == channel).toList();
 
     final List<Widget> children = <Widget>[];
     bool first = true;
