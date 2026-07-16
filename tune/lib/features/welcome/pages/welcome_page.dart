@@ -4,23 +4,35 @@ import 'package:tune/common/values/asset_values.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:tune/common/extensions/num_extensions.dart';
-import 'package:tune/features/channel/values/mock_channels.dart';
+import 'package:tune/features/channel/models/channel.dart';
+import 'package:tune/features/welcome/data/artist_wall_repository.dart';
 import 'package:tune/features/welcome/widgets/channel_wall.dart';
 
-/// The first impression of BunPod: a living wall of channel artwork behind a
-/// scrim, the wordmark, a short promise, and a single clear action. The
-/// foreground copy and CTA are static — only the wall animates. The wall stays
-/// tappable (tap a cover to reshape it) because the overlays above it are
-/// hit-transparent: the scrim is wrapped in [IgnorePointer] and the copy/CTA are
-/// bottom-anchored rather than filling the screen.
-class WelcomePage extends StatelessWidget {
+/// The first impression of TUNE: a living wall of real YouTube artist
+/// artwork behind a scrim, the wordmark, a short promise, and a single clear
+/// action. The wall is fetched live from YouTube (see
+/// [ArtistWallRepository]) rather than mocked, so it's a real, ever-changing
+/// slice of the catalog TUNE plays from. The foreground copy and CTA are
+/// static — only the wall animates. The wall stays tappable (tap a cover to
+/// reshape it) because the overlays above it are hit-transparent: the scrim
+/// is wrapped in [IgnorePointer] and the copy/CTA are bottom-anchored rather
+/// than filling the screen.
+class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key, this.onStart});
 
   final VoidCallback? onStart;
 
+  @override
+  State<WelcomePage> createState() => _WelcomePageState();
+}
+
+class _WelcomePageState extends State<WelcomePage> {
+  late final Future<List<Channel>> _artists = ArtistWallRepository.instance
+      .fetchWall();
+
   void _start(BuildContext context) {
-    if (onStart != null) {
-      onStart!();
+    if (widget.onStart != null) {
+      widget.onStart!();
       return;
     }
     AuthSheet.show(context);
@@ -37,8 +49,16 @@ class WelcomePage extends StatelessWidget {
       body: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          // ── Living channel wall (interactive) ─────────────────────────
-          ChannelWall(channels: mockChannels),
+          // ── Living artist wall (interactive), backed by a real,
+          //    async fetch from YouTube — no mock data. Tiles simply don't
+          //    appear until the fetch resolves; the wordmark and CTA below
+          //    render immediately regardless. ───────────────────────────
+          FutureBuilder<List<Channel>>(
+            future: _artists,
+            builder: (BuildContext context, AsyncSnapshot<List<Channel>> s) {
+              return ChannelWall(channels: s.data ?? const <Channel>[]);
+            },
+          ),
 
           // ── Scrim: fade to solid where the copy and CTA live so text stays
           //    legible. A dark veil over the mosaic reads as moody depth, but a
@@ -94,7 +114,7 @@ class WelcomePage extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        'A world in every voice.',
+                        'Every artist. Every track. One tap away.',
                         style: text.headlineMedium?.copyWith(
                           color: cs.onSurface,
                           fontWeight: FontWeight.w700,
@@ -104,8 +124,8 @@ class WelcomePage extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'The ideas that quietly shape a life are being '
-                        'spoken now. Begin by listening.',
+                        "YouTube Music's full catalog, in an ad-free, "
+                        'expressive player built just for it.',
                         style: text.bodyLarge?.copyWith(
                           color: cs.onSurfaceVariant,
                           height: 1.4,
