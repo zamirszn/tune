@@ -188,7 +188,6 @@ class DownloadTile extends StatelessWidget {
           ],
         );
     }
-    return null;
   }
 }
 

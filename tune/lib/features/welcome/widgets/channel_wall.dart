@@ -3,22 +3,28 @@ import 'package:tune/features/channel/models/channel.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
 import 'package:material_shapes/material_shapes.dart';
 import 'package:motor/motor.dart';
 
 /// A full-bleed mosaic of channel cover art that starts as an edge-to-edge grid
-/// of squares. Each tile waits for its own image to load, holds as a square for
-/// a beat so you register the cover, then morphs — once — from square into an
-/// expressive [MaterialShapes] silhouette, opening up the negative space between
-/// covers. Once settled, it stays put.
+/// of squares and morphs — once, on a short timer after it mounts — into an
+/// expressive [MaterialShapes] silhouette, opening up the negative space
+/// between covers. Once settled, it stays put.
 ///
-/// Because each shape stays inscribed in its own square cell, tiles are gapless
-/// at the start and can never overlap.
+/// The shape morph never waits on [channels]: tiles morph on their own timer
+/// regardless of whether real data has arrived yet, so the wall reads as an
+/// intentional design the instant it appears rather than a blank screen. When
+/// [channels] is empty (still loading), every tile shows a solid placeholder
+/// tint in its settled shape; the moment real channels are supplied, each
+/// tile's cover art cross-fades in on top of its own placeholder, in place —
+/// see [SmoothImage].
 ///
-/// Under reduced-motion the morph is skipped: tiles render statically in their
-/// settled shape as soon as their image is ready.
+/// Because each shape stays inscribed in its own square cell, tiles are
+/// gapless at the start and can never overlap.
+///
+/// Under reduced-motion the morph is skipped: tiles render statically in
+/// their settled shape immediately.
 class ChannelWall extends StatelessWidget {
   const ChannelWall({super.key, required this.channels});
 
@@ -28,8 +34,7 @@ class ChannelWall extends StatelessWidget {
   static const double _targetTile = 118;
 
   /// Builds a gapless, full-bleed grid of square cells covering the [w]×[h] box.
-  /// Cells cycle through the available channels so the whole background fills.
-  static List<_TileSpec> _layoutFor(double w, double h, int channelCount) {
+  static List<_TileSpec> _layoutFor(double w, double h) {
     final int cols = (w / _targetTile).round().clamp(3, 5);
     final double cell = w / cols;
     final int rows = (h / cell).ceil();
@@ -44,7 +49,6 @@ class ChannelWall extends StatelessWidget {
             left: col * cell,
             top: row * cell,
             size: cell,
-            channelIndex: i % channelCount,
             shape: i % _FloatingTile.shapeCount,
           ),
         );
@@ -55,21 +59,23 @@ class ChannelWall extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (channels.isEmpty) return const SizedBox.shrink();
-
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final List<_TileSpec> layout = _layoutFor(
           constraints.maxWidth,
           constraints.maxHeight,
-          channels.length,
         );
         return Stack(
           children: <Widget>[
             for (final _TileSpec spec in layout)
               _FloatingTile(
                 key: ValueKey<int>(spec.index),
-                channel: channels[spec.channelIndex],
+                // Cycle through whatever real channels have arrived; while
+                // channels is still empty this is null and the tile shows
+                // its placeholder tint instead of art.
+                channel: channels.isEmpty
+                    ? null
+                    : channels[spec.index % channels.length],
                 spec: spec,
               ),
           ],
@@ -85,7 +91,6 @@ class _TileSpec {
     required this.left,
     required this.top,
     required this.size,
-    required this.channelIndex,
     required this.shape,
   });
 
@@ -97,8 +102,6 @@ class _TileSpec {
   final double top;
   final double size;
 
-  final int channelIndex;
-
   /// Index into the shared settle-shape table.
   final int shape;
 }
@@ -106,7 +109,7 @@ class _TileSpec {
 class _FloatingTile extends StatefulWidget {
   const _FloatingTile({super.key, required this.channel, required this.spec});
 
-  final Channel channel;
+  final Channel? channel;
   final _TileSpec spec;
 
   // The expressive shape each square settles into.
@@ -125,6 +128,23 @@ class _FloatingTile extends StatefulWidget {
 
   static int get shapeCount => _shapes.length;
 
+  /// A small, hand-picked palette so the wall reads as an intentional mosaic
+  /// of color before any real cover art has loaded, rather than a single
+  /// flat tint repeated everywhere.
+  static const List<Color> _placeholderPalette = <Color>[
+    Color(0xFF6750A4),
+    Color(0xFF386A20),
+    Color(0xFF904A43),
+    Color(0xFF006874),
+    Color(0xFF7D5700),
+    Color(0xFF984061),
+    Color(0xFF37618E),
+    Color(0xFF6B5E1A),
+  ];
+
+  Color get placeholderSeed =>
+      _placeholderPalette[spec.index % _placeholderPalette.length];
+
   @override
   State<_FloatingTile> createState() => _FloatingTileState();
 }
@@ -132,17 +152,13 @@ class _FloatingTile extends StatefulWidget {
 class _FloatingTileState extends State<_FloatingTile> {
   static final RoundedPolygon _square = MaterialShapes.square;
 
-  /// How long the loaded cover is held as a square before it morphs.
+  /// How long a tile is held as a square before it morphs. Runs on mount
+  /// regardless of whether real channel data has arrived yet — the shape
+  /// itself is the placeholder, so there's nothing worth waiting on.
   static const Duration _hold = Duration(milliseconds: 300);
 
-  late final ImageProvider _provider = ExtendedNetworkImageProvider(
-    widget.channel.image,
-    cache: true,
-  );
-  ImageStream? _stream;
-  ImageStreamListener? _listener;
   Timer? _holdTimer;
-  bool _loaded = false;
+  bool _settleScheduled = false;
 
   final math.Random _rng = math.Random();
 
@@ -158,29 +174,10 @@ class _FloatingTileState extends State<_FloatingTile> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _resolveImage();
-  }
-
-  void _resolveImage() {
-    final ImageStream stream = _provider.resolve(
-      createLocalImageConfiguration(context),
-    );
-    if (stream.key == _stream?.key) return;
-    final ImageStreamListener listener = ImageStreamListener(
-      (ImageInfo image, bool _) => _onReady(),
-      onError: (Object _, StackTrace? _) => _onReady(),
-    );
-    _stream?.removeListener(_listener!);
-    _stream = stream;
-    _listener = listener;
-    _stream!.addListener(listener);
-  }
-
-  /// The image is ready (or errored): flip to showing it, hold as a square,
-  /// then trigger the single morph. Reduced-motion snaps straight to the shape.
-  void _onReady() {
-    if (_loaded || !mounted) return;
-    setState(() => _loaded = true);
+    // Only schedule the settle once per tile — didChangeDependencies can run
+    // more than once (e.g. on theme/media-query changes).
+    if (_settleScheduled) return;
+    _settleScheduled = true;
 
     final bool reduceMotion =
         MediaQuery.maybeDisableAnimationsOf(context) ?? false;
@@ -219,7 +216,6 @@ class _FloatingTileState extends State<_FloatingTile> {
   @override
   void dispose() {
     _holdTimer?.cancel();
-    if (_listener != null) _stream?.removeListener(_listener!);
     super.dispose();
   }
 
@@ -239,6 +235,7 @@ class _FloatingTileState extends State<_FloatingTile> {
   Widget build(BuildContext context) {
     final bool reduceMotion =
         MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final Channel? channel = widget.channel;
 
     return Positioned(
       left: widget.spec.left,
@@ -266,11 +263,11 @@ class _FloatingTileState extends State<_FloatingTile> {
               child: child,
             );
           },
-          // Smooth fade-in over a seed-colored placeholder. The separate image
-          // stream above still drives the shape-morph timing.
+          // Solid tint until a channel arrives, then its cover art
+          // cross-fades in on top — see [SmoothImage].
           child: SmoothImage(
-            url: widget.channel.image,
-            placeholderColor: widget.channel.seed,
+            url: channel?.image,
+            placeholderColor: channel?.seed ?? widget.placeholderSeed,
           ),
         ),
       ),
